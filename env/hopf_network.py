@@ -111,14 +111,14 @@ class HopfNetwork():
                                     [1,0,0,1],
                                     [1,0,0,1],
                                     [0,-1,-1,0]])
-    self.PHI_bound = np.matrix([[0,0,np.pi,np.pi],
-                               [0,0,np.pi,np.pi],
-                               [np.pi,np.pi,0,0],
-                               [np.pi,np.pi,0,0]])
-    self.PHI_pace = np.matrix([[0,np.pi,0,np.pi],
-                              [np.pi,0,np.pi,0],
-                              [0,np.pi,0,np.pi],
-                              [np.pi,0,np.pi,0]])
+    self.PHI_bound = np.pi*np.matrix([[0,0,-1,-1],
+                                    [0,0,-1,-1],
+                                    [1,1,0,0],
+                                    [1,1,0,0]])
+    self.PHI_pace = np.pi*np.matrix([[0,-1,0,-1],
+                                    [1,0,1,0],
+                                    [0,-1,0,-1],
+                                    [1,0,1,0]])
 
     if gait == "TROT":
       self.PHI = self.PHI_trot
