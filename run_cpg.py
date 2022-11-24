@@ -72,20 +72,20 @@ t = np.arange(TEST_STEPS)*TIME_STEP
 
 ############## Sample Gains
 # joint PD gains
-kp=np.array([100,100,100])
-kd=np.array([2,2,2])
+kp=1*np.array([100,100,100])
+kd=1*np.array([2,2,2])
 # Cartesian PD gains
-kpCartesian = np.diag([500]*3)
-kdCartesian = np.diag([20]*3)
+kpCartesian = 1* np.diag([500]*3)
+kdCartesian = 1* np.diag([20]*3)
 
 for j in range(TEST_STEPS):
   # initialize torque array to send to motors
   action = np.zeros(12) 
   # get desired foot positions from CPG 
   xs,zs = cpg.update()
-  # [TODO] get current motor angles and velocities for joint PD, see GetMotorAngles(), GetMotorVelocities() in quadruped.py
-  # q = env.robot.GetMotorAngles()
-  # dq = 
+
+  q = env.robot.GetMotorAngles()
+  dq = env.robot.GetMotorVelocities()
 
   # loop through desired foot positions and calculate torques
   for i in range(4):
@@ -94,18 +94,20 @@ for j in range(TEST_STEPS):
     # get desired foot i pos (xi, yi, zi) in leg frame
     leg_xyz = np.array([xs[i],sideSign[i] * foot_y,zs[i]])
     # call inverse kinematics to get corresponding joint angles (see ComputeInverseKinematics() in quadruped.py)
-    leg_q = np.zeros(3) # [TODO] 
-    # Add joint PD contribution to tau for leg i (Equation 4)
-    tau += np.zeros(3) # [TODO] 
+    leg_q = env.robot.ComputeInverseKinematics(i, leg_xyz)
+    # Add joint PD contribution to tau for leg i
+    q_i = q[3*i:3*(i+1)]
+    dq_i = dq[3*i:3*(i+1)]
+    tau += kp*(leg_q-q_i) + kd*(-dq_i)
 
     # add Cartesian PD contribution
     if ADD_CARTESIAN_PD:
       # Get current Jacobian and foot position in leg frame (see ComputeJacobianAndPosition() in quadruped.py)
-      # [TODO] 
+      J,pos = env.robot.ComputeJacobianAndPosition(i)
       # Get current foot velocity in leg frame (Equation 2)
-      # [TODO] 
+      v = np.matmul(J,dq_i)
       # Calculate torque contribution from Cartesian PD (Equation 5) [Make sure you are using matrix multiplications]
-      tau += np.zeros(3) # [TODO]
+      tau += np.matmul(np.transpose(J),(np.matmul(kpCartesian,(leg_xyz-pos))+np.matmul(kdCartesian,-v)))
 
     # Set tau for legi in action vector
     action[3*i:3*i+3] = tau
