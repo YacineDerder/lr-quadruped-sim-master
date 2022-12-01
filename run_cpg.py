@@ -69,6 +69,16 @@ t = np.arange(TEST_STEPS)*TIME_STEP
 
 # [TODO] initialize data structures to save CPG and robot states
 
+# First task, data structure initialization
+r_list = np.zeros([TEST_STEPS,4])
+theta_list = np.zeros([TEST_STEPS,4])
+dr_list = np.zeros([TEST_STEPS,4])
+dtheta_list = np.zeros([TEST_STEPS,4])
+
+# Second task, data structure initialization
+pos_leg_0 = np.zeros([TEST_STEPS,3])
+des_pos_leg_0 = np.zeros([TEST_STEPS,3])
+
 
 ############## Sample Gains
 # joint PD gains
@@ -116,6 +126,10 @@ for j in range(TEST_STEPS):
   env.step(action) 
 
   # [TODO] save any CPG or robot states
+  r_list[j,:] = cpg.get_r()
+  theta_list[j,:] = cpg.get_theta()
+  dr_list[j,:] = cpg.get_dr()
+  dtheta_list[j,:] = cpg.get_dtheta()
 
 
 
