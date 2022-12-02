@@ -59,6 +59,10 @@ from utils.file_utils import get_latest_model, load_all_results
 LEARNING_ALG = "PPO"
 interm_dir = "./logs/intermediate_models/"
 # path to saved models, i.e. interm_dir + '121321105810'
+<<<<<<< Updated upstream
+=======
+#log_dir = interm_dir + '111422201103'
+>>>>>>> Stashed changes
 log_dir = interm_dir + '112922112057'
 
 # initialize env configs (render at test time)
