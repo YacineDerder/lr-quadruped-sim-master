@@ -214,6 +214,28 @@ class QuadrupedGymEnv(gym.Env):
                                         -self._robot_config.VELOCITY_LIMITS,
                                         np.array([-1.0]*4))) -  OBSERVATION_EPS)
 
+      # "Medium observation" from CPG-RL paper 
+      observation_high = (np.concatenate((np.array([1.0]*4)),   # Base orientation limits
+                                          (np.array([2.0]*3)),  # Base Linear Velocity limits
+                                          (np.array([2.0]*3)),  # Base Angular Velocity limits
+                                          (np.array([1.0]*4)),  # feetInContactBool limits
+                                          (np.array([1.0]*4)),  # CPG r limits
+                                          (np.array([1.0]*4)),  # CPG dr limits
+                                          (np.array([np.pi]*4)),  # CPG r limits
+                                          (np.array([np.pi]*4)),  # CPG dr limits
+                                          ) 
+                                          + OBSERVATION_EPS)
+      observation_low = (np.concatenate((np.array([-1.0]*4)),
+                                        (np.array([-2.0]*3)),  # Base Linear Velocity limits
+                                        (np.array([-2.0]*3)),  # Base Angular Velocity limits
+                                        (np.array([0.0]*4)),  # feetInContactBool limits
+                                        (np.array([-1.0]*4)),  # CPG r limits
+                                        (np.array([-1.0]*4)),  # CPG dr limits
+                                        (np.array([-np.pi]*4)),  # CPG r limits
+                                        (np.array([-np.pi]*4)),  # CPG dr limits
+                                        ) 
+                                        -  OBSERVATION_EPS)
+
     else:
       raise ValueError("observation space not defined or not intended")
 
@@ -235,9 +257,9 @@ class QuadrupedGymEnv(gym.Env):
   def _get_observation(self):
     """Get observation, depending on obs space selected. """
     if self._observation_space_mode == "DEFAULT":
-      self._observation = np.concatenate((self.robot.GetMotorAngles(), 
-                                          self.robot.GetMotorVelocities(),
-                                          self.robot.GetBaseOrientation() ))
+      self._observation = np.concatenate((self.robot.GetMotorAngles(),        # 12
+                                          self.robot.GetMotorVelocities(),    # 12
+                                          self.robot.GetBaseOrientation() ))  # 4
     elif self._observation_space_mode == "LR_COURSE_OBS":
       # [TODO] Get observation from robot. What are reasonable measurements we could get on hardware?
       # if using the CPG, you can include states with self._cpg.get_r(), for example
@@ -245,6 +267,17 @@ class QuadrupedGymEnv(gym.Env):
       self._observation = np.concatenate((self.robot.GetMotorAngles(), 
                                           self.robot.GetMotorVelocities(),
                                           self.robot.GetBaseOrientation() ))
+
+      # "Medium observation" from CPG-RL paper 
+      _, _, _, feetInContactBool = self.robot.GetContactInfo()
+      self._observation = np.concatenate((self.robot.GetBaseOrientation(),      # 4
+                                          self.robot.GetBaseLinearVelocity(),   # 3
+                                          self.robot.GetBaseAngularVelocity(),  # 3
+                                          feetInContactBool,                    # 4
+                                          self._cpg.get_r(),                    # 4
+                                          self._cpg.get_dr(),                   # 4
+                                          self._cpg.get_theta(),                # 4
+                                          self._cpg.get_dtheta() ))             # 4, Total states : 30
 
     else:
       raise ValueError("observation space not defined or not intended")
