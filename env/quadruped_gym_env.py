@@ -215,25 +215,23 @@ class QuadrupedGymEnv(gym.Env):
                                         np.array([-1.0]*4))) -  OBSERVATION_EPS)
 
       # "Medium observation" from CPG-RL paper 
-      observation_high = (np.concatenate((np.array([1.0]*4)),   # Base orientation limits
-                                          (np.array([2.0]*3)),  # Base Linear Velocity limits
-                                          (np.array([2.0]*3)),  # Base Angular Velocity limits
-                                          (np.array([1.0]*4)),  # feetInContactBool limits
-                                          (np.array([1.0]*4)),  # CPG r limits
-                                          (np.array([1.0]*4)),  # CPG dr limits
-                                          (np.array([np.pi]*4)),  # CPG r limits
-                                          (np.array([np.pi]*4)),  # CPG dr limits
-                                          ) 
+      observation_high = (np.concatenate((np.array([1.0]*4),   # Base orientation limits
+                                          np.array([2.0]*3),  # Base Linear Velocity limits
+                                          np.array([2.0]*3),  # Base Angular Velocity limits
+                                          np.array([1.0]*4),  # feetInContactBool limits
+                                          np.array([1.0]*4),  # CPG r limits
+                                          np.array([1.0]*4),  # CPG dr limits
+                                          np.array([np.pi]*4),  # CPG r limits
+                                          np.array([np.pi]*4))) # CPG dr limits
                                           + OBSERVATION_EPS)
-      observation_low = (np.concatenate((np.array([-1.0]*4)),
-                                        (np.array([-2.0]*3)),  # Base Linear Velocity limits
-                                        (np.array([-2.0]*3)),  # Base Angular Velocity limits
-                                        (np.array([0.0]*4)),  # feetInContactBool limits
-                                        (np.array([-1.0]*4)),  # CPG r limits
-                                        (np.array([-1.0]*4)),  # CPG dr limits
-                                        (np.array([-np.pi]*4)),  # CPG r limits
-                                        (np.array([-np.pi]*4)),  # CPG dr limits
-                                        ) 
+      observation_low = (np.concatenate((np.array([-1.0]*4),
+                                        np.array([-2.0]*3),  # Base Linear Velocity limits
+                                        np.array([-2.0]*3),  # Base Angular Velocity limits
+                                        np.array([0.0]*4),  # feetInContactBool limits
+                                        np.array([-1.0]*4),  # CPG r limits
+                                        np.array([-1.0]*4),  # CPG dr limits
+                                        np.array([-np.pi]*4),  # CPG r limits
+                                        np.array([-np.pi]*4))) # CPG dr limits
                                         -  OBSERVATION_EPS)
 
     else:
@@ -449,13 +447,14 @@ class QuadrupedGymEnv(gym.Env):
     sideSign = np.array([-1, 1, -1, 1]) # get correct hip sign (body right is negative)
     # get motor kp and kd gains (can be modified)
     kp = self._robot_config.MOTOR_KP # careful of size!
-    kd = self._robot_config.MOTOR_KD
+    kd = self._robot_config.MOTOR_KD 
     # get current motor velocities
     q = self.robot.GetMotorAngles()
     dq = self.robot.GetMotorVelocities()
 
     action = np.zeros(12)
     # loop through each leg
+    q_des = np.zeros(12)
     for i in range(4):
       # get desired foot i pos (xi, yi, zi)
       x = xs[i]
@@ -463,14 +462,18 @@ class QuadrupedGymEnv(gym.Env):
       z = zs[i]
 
       # call inverse kinematics to get corresponding joint angles
-      q_des = self.robot.ComputeInverseKinematics(i, (x,y,z))
-      # Add joint PD contribution to tau
-      tau = np.matmul(kp, (q_des-q)) + np.matmul(kd, (-dq))
+      q_des[3*i:3*i+3] = self.robot.ComputeInverseKinematics(i, (x,y,z))
 
-      # add Cartesian PD contribution (as you wish)
-      # tau +=
+    # Add joint PD contribution to tau
+    # print("Size q_des = ", np.size(q_des), "Size q = ", np.size(q), "Size kp = ", np.size(kp), "\n")
+    tau = np.multiply(kp, (q_des-q)) + np.multiply(kd, (-dq))
+    # print("Size tau = ", np.size(tau), "\n")
 
-      action[3*i:3*i+3] = tau
+    # add Cartesian PD contribution (as you wish)
+    # tau +=
+
+    action = tau
+    # print("Size action = ", np.size(action), "\n")
 
     return action
 
