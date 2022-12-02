@@ -69,6 +69,9 @@ t = np.arange(TEST_STEPS)*TIME_STEP
 
 # [TODO] initialize data structures to save CPG and robot states
 
+xs_cpg = np.zeros((TEST_STEPS,4))
+zs_cpg = np.zeros((TEST_STEPS,4))
+
 # First task, data structure initialization
 r_list = np.zeros([TEST_STEPS,4])
 theta_list = np.zeros([TEST_STEPS,4])
@@ -123,8 +126,10 @@ for j in range(TEST_STEPS):
     action[3*i:3*i+3] = tau
 
   # send torques to robot and simulate TIME_STEP seconds 
-  env.step(action) 
+  env.step(action)
 
+  xs_cpg[j,:] = xs
+  zs_cpg[j,:] = zs
   # [TODO] save any CPG or robot states
   r_list[j,:] = cpg.get_r()
   theta_list[j,:] = cpg.get_theta()
@@ -137,7 +142,16 @@ for j in range(TEST_STEPS):
 # PLOTS
 #####################################################
 # example
-# fig = plt.figure()
-# plt.plot(t,joint_pos[1,:], label='FR thigh')
-# plt.legend()
-# plt.show()
+#fig = plt.figure()
+#plt.plot(t,joint_pos[1,:], label='FR thigh')
+#plt.legend()
+#plt.show()
+fig2 = plt.figure()
+plt.plot(range(TEST_STEPS),xs_cpg[:,1])
+plt.legend("x range for FR foot")
+plt.show()
+
+fig3 = plt.figure()
+plt.plot(range(TEST_STEPS),zs_cpg[:,1])
+plt.legend("z range for FR foot")
+plt.show()
