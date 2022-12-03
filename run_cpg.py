@@ -52,7 +52,7 @@ foot_y = 0.0838 # this is the hip length
 sideSign = np.array([-1, 1, -1, 1]) # get correct hip sign (body right is negative)
 
 env = QuadrupedGymEnv(render=True,              # visualize
-                    on_rack=False,              # useful for debugging! 
+                    on_rack=False,              # useful for debugging!
                     isRLGymInterface=False,     # not using RL
                     time_step=TIME_STEP,
                     action_repeat=1,
@@ -71,6 +71,10 @@ t = np.arange(TEST_STEPS)*TIME_STEP
 
 xs_cpg = np.zeros((TEST_STEPS,4))
 zs_cpg = np.zeros((TEST_STEPS,4))
+xs_robot = np.zeros((TEST_STEPS,4))
+zs_robot = np.zeros((TEST_STEPS,4))
+distance_run = np.zeros(3)
+robot_v = np.zeros((TEST_STEPS,3))
 
 # First task, data structure initialization
 r_list = np.zeros([TEST_STEPS,4])
@@ -86,9 +90,9 @@ des_pos_leg_0 = np.zeros([TEST_STEPS,3])
 ############## Sample Gains
 # joint PD gains
 kp=1*np.array([100,100,100])
-kd=1*np.array([2,2,2])
+kd=0.5*np.array([2,2,2])
 # Cartesian PD gains
-kpCartesian = 1* np.diag([500]*3)
+kpCartesian = 5* np.diag([500]*3)
 kdCartesian = 1* np.diag([20]*3)
 
 for j in range(TEST_STEPS):
@@ -99,6 +103,7 @@ for j in range(TEST_STEPS):
 
   q = env.robot.GetMotorAngles()
   dq = env.robot.GetMotorVelocities()
+  robot_v[j,:] = env.robot.GetBaseLinearVelocity()
 
   # loop through desired foot positions and calculate torques
   for i in range(4):
@@ -130,13 +135,16 @@ for j in range(TEST_STEPS):
 
   xs_cpg[j,:] = xs
   zs_cpg[j,:] = zs
+  xs_robot[j,:] = pos[0]
+  zs_robot[j,:] = pos[2]
   # [TODO] save any CPG or robot states
   r_list[j,:] = cpg.get_r()
   theta_list[j,:] = cpg.get_theta()
   dr_list[j,:] = cpg.get_dr()
   dtheta_list[j,:] = cpg.get_dtheta()
 
-
+distance_run = np.array(env.robot.GetBasePosition())-np.array(env.robot._GetDefaultInitPosition())
+print(distance_run)
 
 ##################################################### 
 # PLOTS
@@ -146,12 +154,18 @@ for j in range(TEST_STEPS):
 #plt.plot(t,joint_pos[1,:], label='FR thigh')
 #plt.legend()
 #plt.show()
+fig1 = plt.figure()
+plt.plot(range(TEST_STEPS),robot_v[:,0])
+plt.show()
+
 fig2 = plt.figure()
-plt.plot(range(TEST_STEPS),xs_cpg[:,1])
-plt.legend("x range for FR foot")
+plt.plot(range(TEST_STEPS),xs_cpg[:,1],c="red")
+plt.plot(range(TEST_STEPS),xs_robot[:,1],c="blue")
+plt.legend("desired x range for FR foot")
 plt.show()
 
 fig3 = plt.figure()
-plt.plot(range(TEST_STEPS),zs_cpg[:,1])
-plt.legend("z range for FR foot")
+plt.plot(range(TEST_STEPS),zs_cpg[:,1],c="red")
+plt.plot(range(TEST_STEPS),zs_robot[:,1],c="blue")
+plt.legend("desired z range for FR foot")
 plt.show()

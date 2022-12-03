@@ -49,17 +49,17 @@ class HopfNetwork():
   """
   def __init__(self,
                 mu=1**2,                 # intrinsic amplitude, converges to sqrt(mu)
-                omega_swing=5*2*np.pi,   # frequency in swing phase (can edit)
-                omega_stance=2*2*np.pi,  # frequency in stance phase (can edit)
+                omega_swing=10*2*np.pi,   # frequency in swing phase (can edit)
+                omega_stance=4*2*np.pi,  # frequency in stance phase (can edit)
                 gait="BOUND",             # Gait, can be TROT, WALK, PACE, BOUND, etc.
-                alpha=50,                # amplitude convergence factor
+                alpha=12,                # amplitude convergence factor
                 coupling_strength=1,     # coefficient to multiply coupling matrix
                 couple=True,             # whether oscillators should be coupled
                 time_step=0.001,         # time step 
-                ground_clearance=0.07,   # foot swing height 
-                ground_penetration=0.01, # foot stance penetration into ground 
-                robot_height=0.3,        # in nominal case (standing) 
-                des_step_len=0.05,       # desired step length 
+                ground_clearance=0.048,   # foot swing height
+                ground_penetration=0.01, # foot stance penetration into ground
+                robot_height=0.25,        # in nominal case (standing)
+                des_step_len=0.060,       # desired step length
                 max_step_len_rl=0.1,     # max step length, for RL scaling 
                 use_RL=False             # whether to learn parameters with RL 
                 ):
@@ -103,7 +103,7 @@ class HopfNetwork():
     """ For coupling oscillators in phase space. 
     [TODO] update all coupling matrices
     """
-    self.PHI_walk = 2*np.pi*np.matrix([[0, -0.5, -0.25, 0.25],
+    self.PHI_walk = -2*np.pi*np.matrix([[0, -0.5, -0.25, 0.25],
                                       [0.5, 0, 0.25, 0.75],
                                       [0.25, -0.25, 0, 0.5],
                                       [-0.25,-0.75,-0.5,0]])
