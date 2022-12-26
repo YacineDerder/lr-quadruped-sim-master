@@ -207,33 +207,67 @@ class QuadrupedGymEnv(gym.Env):
       # [TODO] Set observation upper and lower ranges. What are reasonable limits? 
       # Note 50 is arbitrary below, you may have more or less
       # if using CPG-RL, remember to include limits on these  #Same as default and expand for additional conditions below
-      observation_high = (np.concatenate((self._robot_config.UPPER_ANGLE_JOINT,
-                                          self._robot_config.VELOCITY_LIMITS,
-                                          np.array([1.0]*4))) + OBSERVATION_EPS)
-      observation_low = (np.concatenate((self._robot_config.LOWER_ANGLE_JOINT,
-                                        -self._robot_config.VELOCITY_LIMITS,
-                                        np.array([-1.0]*4))) -  OBSERVATION_EPS)
+      # observation_high = (np.concatenate((self._robot_config.UPPER_ANGLE_JOINT,
+      #                                     self._robot_config.VELOCITY_LIMITS,
+      #                                     np.array([1.0]*4))) + OBSERVATION_EPS)
+      # observation_low = (np.concatenate((self._robot_config.LOWER_ANGLE_JOINT,
+      #                                   -self._robot_config.VELOCITY_LIMITS,
+      #                                   np.array([-1.0]*4))) -  OBSERVATION_EPS)
 
       # "Medium observation" from CPG-RL paper 
-      observation_high = (np.concatenate((np.array([1.0]*4),   # Base orientation limits
-                                          np.array([2.0]*3),  # Base Linear Velocity limits
-                                          np.array([2.0]*3),  # Base Angular Velocity limits
-                                          np.array([1.0]*4),  # feetInContactBool limits
-                                          np.array([1.0]*4),  # CPG r limits
-                                          np.array([1.0]*4),  # CPG dr limits
-                                          np.array([np.pi]*4),  # CPG r limits
-                                          np.array([np.pi]*4))) # CPG dr limits
-                                          + OBSERVATION_EPS)
-      observation_low = (np.concatenate((np.array([-1.0]*4),
-                                        np.array([-2.0]*3),  # Base Linear Velocity limits
-                                        np.array([-2.0]*3),  # Base Angular Velocity limits
-                                        np.array([0.0]*4),  # feetInContactBool limits
-                                        np.array([-1.0]*4),  # CPG r limits
-                                        np.array([-1.0]*4),  # CPG dr limits
-                                        np.array([-np.pi]*4),  # CPG r limits
-                                        np.array([-np.pi]*4))) # CPG dr limits
-                                        -  OBSERVATION_EPS)
+      if (self._motor_control_mode == "CPG"):
+        observation_high = (np.concatenate((np.array([1.0]*4),   # Base orientation limits
+                                            np.array([2.0]*3),  # Base Linear Velocity limits
+                                            np.array([2.0]*3),  # Base Angular Velocity limits
+                                            np.array([1.0]*4),  # feetInContactBool limits
+                                            np.array([1.0]*4),  # CPG r limits
+                                            np.array([1.0]*4),  # CPG dr limits
+                                            np.array([np.pi]*4),  # CPG r limits
+                                            np.array([np.pi]*4))) # CPG dr limits
+                                            + OBSERVATION_EPS)
+        observation_low = (np.concatenate((np.array([-1.0]*4),
+                                          np.array([-2.0]*3),  # Base Linear Velocity limits
+                                          np.array([-2.0]*3),  # Base Angular Velocity limits
+                                          np.array([0.0]*4),  # feetInContactBool limits
+                                          np.array([-1.0]*4),  # CPG r limits
+                                          np.array([-1.0]*4),  # CPG dr limits
+                                          np.array([-np.pi]*4),  # CPG r limits
+                                          np.array([-np.pi]*4))) # CPG dr limits
+                                          -  OBSERVATION_EPS)
+      
+      # Same as medium observation but with joint positions instead of CPG states
+      if (self._motor_control_mode == "PD"):
+        observation_high = (np.concatenate((np.array([1.0]*4),   # Base orientation limits
+                                            np.array([2.0]*3),  # Base Linear Velocity limits
+                                            np.array([2.0]*3),  # Base Angular Velocity limits
+                                            np.array([1.0]*4),  # feetInContactBool limits
+                                            self._robot_config.UPPER_ANGLE_JOINT, # Joint position limit
+                                            self._robot_config.VELOCITY_LIMITS)) # Joint velocity limit
+                                            + OBSERVATION_EPS)
+        observation_low = (np.concatenate((np.array([-1.0]*4),
+                                          np.array([-2.0]*3),  # Base Linear Velocity limits
+                                          np.array([-2.0]*3),  # Base Angular Velocity limits
+                                          np.array([0.0]*4),  # feetInContactBool limits
+                                          self._robot_config.LOWER_ANGLE_JOINT, # Joint position limit
+                                          -self._robot_config.VELOCITY_LIMITS)) # Joint velocity limit
+                                          -  OBSERVATION_EPS)
 
+      # Same as medium observation but with cartesian positions instead of CPG states
+      if (self._motor_control_mode == "CARTESIAN_PD"):
+        observation_high = (np.concatenate((np.array([1.0]*4),   # Base orientation limits
+                                            np.array([2.0]*3),  # Base Linear Velocity limits
+                                            np.array([2.0]*3),  # Base Angular Velocity limits
+                                            np.array([1.0]*4),  # feetInContactBool limits
+                                            self._robot_config.UPPER_ANGLE_JOINT, # Joint position limit
+                                            self._robot_config.VELOCITY_LIMITS)) # Joint velocity limit
+                                            + OBSERVATION_EPS)
+        observation_low = (np.concatenate((np.array([-1.0]*4),
+                                          np.array([-2.0]*3),  # Base Linear Velocity limits
+                                          np.array([-2.0]*3),  # Base Angular Velocity limits
+                                          np.array([0.0]*4),  # feetInContactBool limits
+                                          self._robot_config.LOWER_ANGLE_JOINT, # Joint position limit
+                                          -self._robot_config.VELOCITY_LIMITS)) # Joint velocity limit
+                                          -  OBSERVATION_EPS)
     else:
       raise ValueError("observation space not defined or not intended")
 
@@ -262,20 +296,46 @@ class QuadrupedGymEnv(gym.Env):
       # [TODO] Get observation from robot. What are reasonable measurements we could get on hardware?
       # if using the CPG, you can include states with self._cpg.get_r(), for example
       # 50 is arbitrary   #Same as default and add additional conditions below
-      self._observation = np.concatenate((self.robot.GetMotorAngles(), 
-                                          self.robot.GetMotorVelocities(),
-                                          self.robot.GetBaseOrientation() ))
+      # self._observation = np.concatenate((self.robot.GetMotorAngles(), 
+      #                                     self.robot.GetMotorVelocities(),
+      #                                     self.robot.GetBaseOrientation() ))
 
       # "Medium observation" from CPG-RL paper 
-      _, _, _, feetInContactBool = self.robot.GetContactInfo()
-      self._observation = np.concatenate((self.robot.GetBaseOrientation(),      # 4
-                                          self.robot.GetBaseLinearVelocity(),   # 3
-                                          self.robot.GetBaseAngularVelocity(),  # 3
-                                          feetInContactBool,                    # 4
-                                          self._cpg.get_r(),                    # 4
-                                          self._cpg.get_dr(),                   # 4
-                                          self._cpg.get_theta(),                # 4
-                                          self._cpg.get_dtheta() ))             # 4, Total states : 30
+      if (self._motor_control_mode == "CPG"):
+        _, _, _, feetInContactBool = self.robot.GetContactInfo()
+        self._observation = np.concatenate((self.robot.GetBaseOrientation(),      # 4
+                                            self.robot.GetBaseLinearVelocity(),   # 3
+                                            self.robot.GetBaseAngularVelocity(),  # 3
+                                            feetInContactBool,                    # 4
+                                            self._cpg.get_r(),                    # 4
+                                            self._cpg.get_dr(),                   # 4
+                                            self._cpg.get_theta(),                # 4
+                                            self._cpg.get_dtheta() ))             # 4, Total states : 30
+
+      # Same as medium observation but with joint positions instead of CPG states
+      if (self._motor_control_mode == "PD"):
+        _, _, _, feetInContactBool = self.robot.GetContactInfo()
+        self._observation = np.concatenate((self.robot.GetBaseOrientation(),      # 4
+                                            self.robot.GetBaseLinearVelocity(),   # 3
+                                            self.robot.GetBaseAngularVelocity(),  # 3
+                                            feetInContactBool,                    # 4
+                                            self.robot.GetMotorAngles(),          # 12
+                                            self.robot.GetMotorVelocities() ))    # 12, Total states : 38
+
+      # Same as medium observation but with cartesian positions instead of CPG states
+      if (self._motor_control_mode == "CARTESIAN_PD"):
+        _, _, _, feetInContactBool = self.robot.GetContactInfo()
+        cart_pos = np.zeros(12)
+        cart_vel = np.zeros(12)
+        for i in range(4):
+          J, cart_pos[3*i:3*i+3] = self.robot.ComputeJacobianAndPosition(i)
+          cart_vel[3*i:3*i+3] = np.matmul(J,self.robot.GetMotorVelocities()[3*i:3*i+3])
+        self._observation = np.concatenate((self.robot.GetBaseOrientation(),      # 4
+                                            self.robot.GetBaseLinearVelocity(),   # 3
+                                            self.robot.GetBaseAngularVelocity(),  # 3
+                                            feetInContactBool,                    # 4
+                                            cart_pos,                             # 12
+                                            cart_vel ))                           # 12, Total states : 38
 
     else:
       raise ValueError("observation space not defined or not intended")
@@ -337,25 +397,68 @@ class QuadrupedGymEnv(gym.Env):
     return max(reward,0) # keep rewards positive
 
 
-  def _reward_lr_course(self, des_vel_x=0.5, vel_tracking_coeff=1, yaw_coeff=1,drift_coeff=1):
-    """ Implement your reward function here. How will you improve upon the above? """
-    # [TODO] add your reward function.  # Based on default reward function, des_vel_x and coefficients to tune
-    # track the desired velocity 
-    vel_tracking_reward = 0.05 * np.exp( -1/ 0.25 *  (self.robot.GetBaseLinearVelocity()[0] - des_vel_x)**2 )
-    # minimize yaw (go straight)
-    yaw_reward = -0.2 * np.abs(self.robot.GetBaseOrientationRollPitchYaw()[2]) 
-    # don't drift laterally 
-    drift_reward = -0.01 * abs(self.robot.GetBasePosition()[1]) 
-    # minimize energy 
-    energy_reward = 0 
-    for tau,vel in zip(self._dt_motor_torques,self._dt_motor_velocities):
-      energy_reward += np.abs(np.dot(tau,vel)) * self._time_step
+  # def _reward_lr_course(self, des_vel_x=0.5, vel_tracking_coeff=1.0, yaw_coeff=1,drift_coeff=1.0):
+  #   """ Implement your reward function here. How will you improve upon the above? """
+  #   # [TODO] add your reward function.  
+  #   # Based on default reward function, des_vel_x and coefficients to tune
+  #   # track the desired velocity 
+  #   kernel_width = 0.25
+  #   vel_tracking_reward = 0.05 * np.exp( -1/ kernel_width *  (self.robot.GetBaseLinearVelocity()[0] - des_vel_x)**2 )
+  #   # minimize yaw (go straight)
+  #   yaw_reward = -0.2 * np.abs(self.robot.GetBaseOrientationRollPitchYaw()[2]) 
+  #   # don't drift laterally 
+  #   drift_reward = -0.01 * abs(self.robot.GetBasePosition()[1]) 
+  #   # minimize energy 
+  #   energy_reward = 0 
+  #   for tau,vel in zip(self._dt_motor_torques,self._dt_motor_velocities):
+  #     energy_reward += np.abs(np.dot(tau,vel)) * self._time_step
 
-    reward = vel_tracking_coeff*vel_tracking_reward \
-            + yaw_coeff*yaw_reward \
-            + drift_coeff*drift_reward \
-            - 0.01 * energy_reward \
-            - 0.1 * np.linalg.norm(self.robot.GetBaseOrientation() - np.array([0,0,0,1]))
+  #   reward = vel_tracking_coeff*vel_tracking_reward \
+  #           + yaw_coeff*yaw_reward \
+  #           + drift_coeff*drift_reward \
+  #           - 0.01 * energy_reward \
+  #           - 0.1 * np.linalg.norm(self.robot.GetBaseOrientation() - np.array([0,0,0,1]))
+
+  #   return max(reward,0) # keep rewards positive
+
+  def _reward_lr_course(self, des_vel_x=0.5):
+    """ Implement your reward function here. How will you improve upon the above? """
+    # [TODO] add your reward function.  
+    # # Based on Hutter and al. "Learning to Walk in Minutes Using Massively Parallel Deep Reinforcement Learning"
+    
+    # Weights
+    kernel_width = 0.25   # For linear and angular tracking
+    l_v_t_weight = 1      # Linear Velocity Tracking weight (x and y)
+    a_v_t_weight = 0.5    # Angular Velocity Tracking weight (yaw)
+    l_v_p_weight = 4      # Linear Velocity Penalty weight (z)
+    a_v_p_weight = 0.05   # Angular Velocity Penalty weight (roll and pitch)
+    j_m_weight = 0.001    # Joint Motion weight
+    j_t_weight = 0.01     # Joint Torque weight
+    a_r_weight = 0.25     # Action Rate weight
+    f_a_t_weight = 2      # Feet Air Time weight
+
+    # Rewards
+    l_v_t_reward = l_v_t_weight * np.exp( -1/ kernel_width *  (self.robot.GetBaseLinearVelocity()[0] - des_vel_x)**2 )
+    a_v_t_reward = a_v_t_weight * np.exp( -1/ kernel_width *  (self.robot.GetBaseAngularVelocity()[2] - 0)**2 )
+    l_v_p_reward = -l_v_p_weight * self.robot.GetBaseLinearVelocity()[2]**2
+    a_v_p_reward = -a_v_p_weight * (self.robot.GetBaseAngularVelocity()[0]**2 + self.robot.GetBaseAngularVelocity()[1]**2)
+    j_m_reward = -j_m_weight * np.linalg.norm(self.robot.GetMotorVelocities())**2 
+    j_t_reward = -j_t_weight * np.linalg.norm(self.robot.GetMotorTorques())**2
+
+    f_a_t_reward = 0
+    _, _, _, feetInContactBool = self.robot.GetContactInfo()
+    for i in feetInContactBool:
+      if i == True:
+        f_a_t_reward += self._time_step
+    f_a_t_reward *= f_a_t_weight
+
+    reward = l_v_t_reward \
+            + a_v_t_reward \
+            + l_v_p_reward \
+            + a_v_p_reward \
+            + j_m_reward \
+            + j_t_reward \
+            + f_a_t_reward
 
     return max(reward,0) # keep rewards positive
 
@@ -414,13 +517,13 @@ class QuadrupedGymEnv(gym.Env):
       # get Jacobian and foot position in leg frame for leg i (see ComputeJacobianAndPosition() in quadruped.py)
       J,pos = self.robot.ComputeJacobianAndPosition(i)
       # desired foot position i (from RL above)
-      Pd = des_foot_pos
+      Pd = des_foot_pos[3*i:3*i+3]
       # desired foot velocity i
-      vd = 0
+      vd = np.zeros(3)
       # foot velocity in leg frame i (Equation 2)
-      v = np.matmul(J,qd)
+      v = np.matmul(J,qd[3*i:3*i+3])
       # calculate torques with Cartesian PD (Equation 5) [Make sure you are using matrix multiplications]
-      tau = np.matmul(np.transpose(J),(np.matmul(kpCartesian,(Pd-pos))+np.matmul(kdCartesian,-v)))
+      tau = np.matmul(np.transpose(J),(np.matmul(kpCartesian,(Pd-pos))+np.matmul(kdCartesian,vd-v)))
 
       action[3*i:3*i+3] = tau
 
