@@ -109,10 +109,16 @@ episode_reward = 0
 # [TODO] initialize arrays to save data from simulation 
 #
 
+compute_CoT = False
 save_data = False
+
 des_speed = "_05ms"  # For figure naming
 # des_speed = "_08ms"
 # des_speed = "_15ms"
+
+if compute_CoT:
+    power_hist = np.zeros(1000)
+    velocity_hist = np.zeros((1000,3))
 
 if save_data:
     if (env_config['motor_control_mode'] == "CPG"):
@@ -146,6 +152,12 @@ for i in range(1000):
     # To get base position, for example: env.envs[0].env.robot.GetBasePosition() 
     #
 
+    if compute_CoT:
+        if i < 1000:
+            raw_power = np.multiply(env.envs[0].env.robot.GetMotorVelocities(), env.envs[0].env.robot.GetMotorTorques())
+            power_hist[i] = np.sum(np.maximum(raw_power, np.zeros(12))) #we also assume here that the robot cannot use regenerative braking
+            velocity_hist[i] = env.envs[0].env.robot.GetBaseLinearVelocity()
+
     if save_data:
         if i < 1000: # Only first run 
             base_x_pos_hist[i] = env.envs[0].env.robot.GetBasePosition()[0]
@@ -169,6 +181,18 @@ for i in range(1000):
                 CPG_theta_history_RL[i] = env.envs[0].env._cpg.get_theta()[3]
     
 # [TODO] make plots:
+if compute_CoT:
+    average_speed = np.sum(np.sqrt(velocity_hist[:,0]**2+velocity_hist[:,1]**2))/1000
+    average_power = np.sum(power_hist)/1000
+    print("average speed: ")
+    print(average_speed)
+    print("average power: ")
+    print(average_power)
+    mass = np.sum(env.envs[0].env.robot.GetTotalMassFromURDF())
+    CoT = average_power/(mass*9.81*average_speed)
+    print("CoT: ")
+    print(CoT)
+
 if save_data:
     print("Saving plots")
     x_axis = np.arange(1000)
