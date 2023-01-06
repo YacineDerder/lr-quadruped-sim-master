@@ -47,7 +47,7 @@ from env.quadruped_gym_env import QuadrupedGymEnv
 
 
 #best results obtained with cartesian only!!
-PD_CARTESIAN_ONLY = True #change both of these variables to have PD only in the joint space
+PD_CARTESIAN_ONLY = True #if this is true the next one has to be true as well
 ADD_CARTESIAN_PD = True #change both of these variables to have PD only in the joint space
 BASIC_TRACKING_PLOT = False
 CPG_STATES_PLOT = False
@@ -63,7 +63,7 @@ env = QuadrupedGymEnv(render=True,              # visualize
                     action_repeat=1,
                     motor_control_mode="TORQUE",
                     add_noise=False,    # start in ideal conditions
-                    # record_video=True
+                    record_video=False #didnt work for me, you have to install ffmpeg
                     )
 
 # initialize Hopf Network, supply gait
@@ -75,11 +75,14 @@ t = np.arange(TEST_STEPS)*TIME_STEP
 # [TODO] initialize data structures to save CPG and robot states
 
 xs_cpg = np.zeros((TEST_STEPS,4))
+ys_cpg = np.zeros((TEST_STEPS,4))
 zs_cpg = np.zeros((TEST_STEPS,4))
 xs_robot = np.zeros((TEST_STEPS,4))
+ys_robot = np.zeros(TEST_STEPS)
 zs_robot = np.zeros((TEST_STEPS,4))
 distance_run = np.zeros(3)
 robot_v = np.zeros((TEST_STEPS,3))
+robot_p = np.zeros(TEST_STEPS)
 
 # First task, data structure initialization
 r_list = np.zeros([TEST_STEPS,4])
@@ -151,12 +154,17 @@ for j in range(TEST_STEPS):
   joint_leg_3[j,:] = q_i
   des_joint_leg_3[j,:] = leg_q
 
+  raw_power = np.multiply(env.robot.GetMotorVelocities(), env.robot.GetMotorTorques())
+  robot_p[j] =np.sum(np.maximum(raw_power, np.zeros(12))) #we also assume here that the robot cannot use regenerative braking
+
   xs_cpg[j,:] = xs
   zs_cpg[j,:] = zs
   if not ADD_CARTESIAN_PD:
     J, pos = env.robot.ComputeJacobianAndPosition(i)
   xs_robot[j,:] = pos[0]
   zs_robot[j,:] = pos[2]
+  ys_cpg[j,:] = pos[1]
+  ys_robot[j] = leg_xyz[1]
   # [TODO] save any CPG or robot states
   r_list[j,:] = cpg.get_r()
   theta_list[j,:] = cpg.get_theta()
@@ -216,13 +224,17 @@ if CPG_STATES_PLOT:
 
 if EXT_TRACKING_PLOT:
   #print(np.size(xs_cpg))
-  fig, axis = plt.subplots(1,2)
+  fig, axis = plt.subplots(1,3)
   axis[0].plot(range(short_t*3),xs_cpg[:short_t*3,3],c="red")
   axis[0].plot(range(short_t*3), xs_robot[:short_t*3, 1], c="blue")
   axis[0].set_title("x")
-  axis[1].plot(range(short_t*3), zs_cpg[:short_t*3,3], c="red")
-  axis[1].plot(range(short_t*3), zs_robot[:short_t*3, 1], c="blue")
-  axis[1].set_title("z")
+  axis[1].plot(range(short_t * 3), ys_cpg[:short_t * 3,3], c="red")
+  axis[1].plot(range(short_t * 3), ys_robot[:short_t * 3], c="blue")
+  axis[1].set_ylim([-0.25,0.25])
+  axis[1].set_title("y")
+  axis[2].plot(range(short_t*3), zs_cpg[:short_t*3,3], c="red")
+  axis[2].plot(range(short_t*3), zs_robot[:short_t*3, 1], c="blue")
+  axis[2].set_title("z")
   #if not PD_CARTESIAN_ONLY and not ADD_CARTESIAN_PD:#same as if "PD_JOINT_ONLY"
   #  plt.title("tracking cartesian command for leg 4, joint PD only")
   #if PD_CARTESIAN_ONLY:
@@ -251,6 +263,16 @@ if EXT_TRACKING_PLOT:
 fig1 = plt.figure()
 plt.plot(range(TEST_STEPS),np.sqrt(robot_v[:,0]**2+robot_v[:,1]**2))
 plt.show()
+average_speed = np.sum(np.sqrt(robot_v[:,0]**2+robot_v[:,1]**2))/TEST_STEPS
+average_power = np.sum(robot_p)/TEST_STEPS
+print("average speed: ")
+print(average_speed)
+print("average power: ")
+print(average_power)
+mass = np.sum(env.robot.GetTotalMassFromURDF())
+CoT = average_power/(mass*9.81*average_speed)
+print("CoT: ")
+print(CoT)
 
 if BASIC_TRACKING_PLOT:
   #print(np.size(xs_cpg))
